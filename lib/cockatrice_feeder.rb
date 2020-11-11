@@ -4,23 +4,25 @@ module CockatriceFeeder
   require 'nokogiri'
 
   @@app_dir = Dir.pwd+"/"
-  @@output_dir = @@app_dir+"decks/"
+  @@deck_dir = @@app_dir+"decks/"
   @@meta_dir = @@app_dir+"meta/"
 
   def self.set_app_dir(dir)
     @@app_dir = (dir + (dir[-1] != "/" ? "/" : ""))
+    @@deck_dir = @@app_dir+"decks/"
+    @@meta_dir = @@app_dir+"meta/"
   end
 
   def self.app_dir
     @@app_dir
   end
 
-  def self.set_output_dir(dir)
-    @@output_dir = (dir + (dir[-1] != "/" ? "/" : ""))
+  def self.set_deck_dir(dir)
+    @@deck_dir = (dir + (dir[-1] != "/" ? "/" : ""))
   end
 
-  def self.output_dir
-    @@output_dir
+  def self.deck_dir
+    @@deck_dir
   end
 
   def self.set_meta_dir(dir)
@@ -31,24 +33,35 @@ module CockatriceFeeder
     @@meta_dir
   end
 
-  def self.create_subfolders
-    folders = %w(edhrecavg mtgdecks tappedout deckstats)
-
-    d = Dir.new(@@output_dir)
-
-    current_items = []
-    d.each do |f|
-      current_items << f
+  def self.setup
+    unless File.directory?(@@meta_dir)
+      Dir.mkdir(@@meta_dir)
+      puts "Creating a folder at '#{@@meta_dir}' for storing meta data."
     end
 
-    folders.each do |folder|
-      unless current_items.include?(folder)
-        Dir.mkdir(@@output_dir+folder)
+    unless File.directory?(@@deck_dir)
+      Dir.mkdir(@@deck_dir)
+      puts "Creating a folder at '#{@@deck_dir}' for generated decks."
+
+      folders = %w(edhrecavg mtgdecks tappedout deckstats)
+
+      folders.each do |folder|
+        unless File.directory?(@@deck_dir+folder)
+          Dir.mkdir(@@deck_dir+folder)
+          puts "Creating a deck subfolder at '#{@@deck_dir+folder}'."
+        end
       end
     end
+
+    puts "Fetching meta data."
+    update_commanders()
+    update_banned()
+    update_commander_tiers()
+    puts "Done! Scraw!"
   end
 
   def self.update_commanders
+    puts "Downloading a list of all commanderse from EDHREC."
     commander_cids = %w(
       w g r u b
       wu ub br rg gw wb ur bg rw gu
@@ -81,6 +94,7 @@ module CockatriceFeeder
   end
 
   def self.update_banned
+    puts "Downloading the current EDH banned card list."
     banned_list = []
 
     more_pages = true
@@ -101,6 +115,7 @@ module CockatriceFeeder
   end
 
   def self.update_commander_tiers
+    puts "Downloading a tappedout deck that ranks EDG commanders into tiers."
     doc = Nokogiri::HTML(HTTParty.get("https://tappedout.net/mtg-decks/list-multiplayer-edh-generals-by-tier/").body)
 
     tiers = {}
@@ -171,10 +186,11 @@ module CockatriceFeeder
       }
     end
 
-    File.open(@@output_dir+"#{subfolder}/#{filename}.cod", "wb") do |file|
+    File.open(@@deck_dir+"#{subfolder}/#{filename}.cod", "wb") do |file|
       file.write(builder.to_xml)
     end
   end
+
 
   # ordering
   # -rating

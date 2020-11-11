@@ -7,12 +7,12 @@ Gem::Specification.new do |s|
   s.authors     = ["Matthew Steinwachs"]
   s.email       = 'matt.steinwachs@gmail.com'
   s.files       = ["lib/cockatrice_feeder.rb"]
-  s.homepage    = ''
+  s.homepage    = 'https://github.com/matt-steinwachs/cockatrice_feeder'
   s.license     = 'MIT'
 
-  s.add_dependency 'nokogiri'
-  s.add_dependency 'httparty'
-  s.add_dependency 'awesome_print'
+  s.add_dependency 'nokogiri', '~> 1.10'
+  s.add_dependency 'httparty', '~> 0.18'
+  s.add_dependency 'awesome_print', '~> 1.8'
 
   s.post_install_message = "Scraw!"
 end
