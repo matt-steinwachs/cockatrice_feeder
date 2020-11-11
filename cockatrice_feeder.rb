@@ -3,8 +3,26 @@ module CockatriceFeeder
   require 'awesome_print'
   require 'nokogiri'
 
-  @@app_dir = "/Users/ceedev/Desktop/Personal/cockatrice_feeder/" #Dir.pwd+"/"
+  @@app_dir = Dir.pwd+"/"
   @@output_dir = @@app_dir
+
+  @@test = 1
+
+  def self.set_app_dir(dir)
+    @@app_dir = (dir + (dir[-1] != "/" ? "/" : ""))
+  end
+
+  def self.app_dir
+    @@app_dir
+  end
+
+  def self.set_output_dir(dir)
+    @@output_dir = (dir + (dir[-1] != "/" ? "/" : ""))
+  end
+
+  def self.output_dir
+    @@output_dir
+  end
 
   def self.create_subfolders
     folders = %w(edhrecavg mtgdecks tappedout deckstats)
