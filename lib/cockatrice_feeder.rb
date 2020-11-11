@@ -339,27 +339,27 @@ module CockatriceFeeder
 
     total_decks = 0
 
-    # puts "Fetching the most recently updated ranked decks from tappedout"
-    # decks = CockatriceFeeder.tappedout_decklist(1..10)
-    # puts "#{decks.length} decks found."
-    # decks.each {|d|
-    #   CockatriceFeeder.tappedout_deck(d)
-    #   total_decks += 1
-    # }
-    #
-    # puts "Fetching the first 10 pages of decks at https://mtgdecks.net/Commander/decklists/"
-    # decks = CockatriceFeeder.mtgdecks_decklist(1..10)
-    # puts "#{decks.length} decks found."
-    # decks.each {|d|
-    #   CockatriceFeeder.mtgdecks_deck(d)
-    #   total_decks += 1
-    # }
-
     puts "Fetching the average deck for every commander on EDHREC"
     decks = CockatriceFeeder.edhrecavg_decklist
     puts "#{decks.length} decks found."
     decks.each {|d|
       CockatriceFeeder.edhrecavg_deck(d)
+      total_decks += 1
+    }
+
+    puts "Fetching the most recently updated ranked decks from tappedout"
+    decks = CockatriceFeeder.tappedout_decklist(1..10)
+    puts "#{decks.length} decks found."
+    decks.each {|d|
+      CockatriceFeeder.tappedout_deck(d)
+      total_decks += 1
+    }
+
+    puts "Fetching the first 10 pages of decks at https://mtgdecks.net/Commander/decklists/"
+    decks = CockatriceFeeder.mtgdecks_decklist(1..10)
+    puts "#{decks.length} decks found."
+    decks.each {|d|
+      CockatriceFeeder.mtgdecks_deck(d)
       total_decks += 1
     }
 

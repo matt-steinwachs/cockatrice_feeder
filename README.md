@@ -7,9 +7,9 @@ Scraw!
 `gem install cockatrice_feeder`
 
 ## Simple
+Run
 ```
-require 'cockatrice_feeder'
-CockatriceFeeder.gobble
+gobble
 ```
 
 This will scrape a whole bunch of decks and put them into a decks folder in the current directory. Wait for it to finish or kill the process once you have enough.
