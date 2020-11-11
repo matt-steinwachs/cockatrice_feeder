@@ -3,7 +3,25 @@ module CockatriceFeeder
   require 'awesome_print'
   require 'nokogiri'
 
-  @@dir = "/Users/ceedev/Desktop/Personal/cockatrice_feeder/"
+  @@app_dir = "/Users/ceedev/Desktop/Personal/cockatrice_feeder/" #Dir.pwd+"/"
+  @@output_dir = @@app_dir
+
+  def self.create_subfolders
+    folders = %w(edhrecavg mtgdecks tappedout deckstats)
+
+    d = Dir.new(@@output_dir)
+
+    current_items = []
+    d.each do |f|
+      current_items << f
+    end
+
+    folders.each do |folder|
+      unless current_items.include?(folder)
+        Dir.mkdir(@@output_dir+folder)
+      end
+    end
+  end
 
   def self.update_commanders
     commander_cids = %w(
@@ -32,7 +50,7 @@ module CockatriceFeeder
       )
     end
 
-    File.open(@@dir+"commanders.json", "wb") do |file|
+    File.open(@@app_dir+"commanders.json", "wb") do |file|
       file.write(commanders.to_json)
     end
   end
@@ -52,7 +70,7 @@ module CockatriceFeeder
       end
     end
 
-    File.open(@@dir+"banned.json", "wb") do |file|
+    File.open(@@app_dir+"banned.json", "wb") do |file|
       file.write(banned_list.to_json)
     end
   end
@@ -73,7 +91,7 @@ module CockatriceFeeder
       end
     end
 
-    File.open(@@dir+"tiers.json", "wb") do |file|
+    File.open(@@app_dir+"tiers.json", "wb") do |file|
       file.write(tiers.to_json)
     end
 
@@ -81,16 +99,16 @@ module CockatriceFeeder
   end
 
   def self.commanders
-    JSON.parse(File.read(@@dir+"commanders.json"))
+    JSON.parse(File.read(@@app_dir+"commanders.json"))
   end
 
   def self.banned
-    JSON.parse(File.read(dir+"banned.json"))
+    JSON.parse(File.read(@@app_dir+"banned.json"))
   end
   # names = banned.map{|c| c["name"]}.uniq.sort
 
   def self.tiers
-    JSON.parse(File.read(dir+"tiers.json"))
+    JSON.parse(File.read(@@app_dir+"tiers.json"))
   end
 
   def self.output_cod(deck, subfolder)
@@ -128,7 +146,7 @@ module CockatriceFeeder
       }
     end
 
-    File.open(@@dir+"#{subfolder}/#{filename}.cod", "wb") do |file|
+    File.open(@@output_dir+"#{subfolder}/#{filename}.cod", "wb") do |file|
       file.write(builder.to_xml)
     end
   end
