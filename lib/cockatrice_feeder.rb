@@ -4,9 +4,8 @@ module CockatriceFeeder
   require 'nokogiri'
 
   @@app_dir = Dir.pwd+"/"
-  @@output_dir = @@app_dir
-
-  @@test = 1
+  @@output_dir = @@app_dir+"decks/"
+  @@meta_dir = @@app_dir+"meta/"
 
   def self.set_app_dir(dir)
     @@app_dir = (dir + (dir[-1] != "/" ? "/" : ""))
@@ -22,6 +21,14 @@ module CockatriceFeeder
 
   def self.output_dir
     @@output_dir
+  end
+
+  def self.set_meta_dir(dir)
+    @@meta_dir = (dir + (dir[-1] != "/" ? "/" : ""))
+  end
+
+  def self.meta_dir
+    @@meta_dir
   end
 
   def self.create_subfolders
@@ -68,7 +75,7 @@ module CockatriceFeeder
       )
     end
 
-    File.open(@@app_dir+"commanders.json", "wb") do |file|
+    File.open(@@meta_dir+"commanders.json", "wb") do |file|
       file.write(commanders.to_json)
     end
   end
@@ -88,7 +95,7 @@ module CockatriceFeeder
       end
     end
 
-    File.open(@@app_dir+"banned.json", "wb") do |file|
+    File.open(@@meta_dir+"banned.json", "wb") do |file|
       file.write(banned_list.to_json)
     end
   end
@@ -109,7 +116,7 @@ module CockatriceFeeder
       end
     end
 
-    File.open(@@app_dir+"tiers.json", "wb") do |file|
+    File.open(@@meta_dir+"tiers.json", "wb") do |file|
       file.write(tiers.to_json)
     end
 
@@ -117,16 +124,16 @@ module CockatriceFeeder
   end
 
   def self.commanders
-    JSON.parse(File.read(@@app_dir+"commanders.json"))
+    JSON.parse(File.read(@@meta_dir+"commanders.json"))
   end
 
   def self.banned
-    JSON.parse(File.read(@@app_dir+"banned.json"))
+    JSON.parse(File.read(@@meta_dir+"banned.json"))
   end
   # names = banned.map{|c| c["name"]}.uniq.sort
 
   def self.tiers
-    JSON.parse(File.read(@@app_dir+"tiers.json"))
+    JSON.parse(File.read(@@meta_dir+"tiers.json"))
   end
 
   def self.output_cod(deck, subfolder)
