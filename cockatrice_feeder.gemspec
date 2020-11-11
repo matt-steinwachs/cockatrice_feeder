@@ -14,5 +14,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'httparty', '~> 0.18'
   s.add_dependency 'awesome_print', '~> 1.8'
 
+  s.executables << 'gobble'
+
   s.post_install_message = "Scraw!"
 end

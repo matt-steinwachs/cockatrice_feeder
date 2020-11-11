@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+
+require 'cockatrice_feeder'
+CockatriceFeeder.gobble
