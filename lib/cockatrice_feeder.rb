@@ -37,6 +37,10 @@ module CockatriceFeeder
     unless File.directory?(@@meta_dir)
       Dir.mkdir(@@meta_dir)
       puts "Creating a folder at '#{@@meta_dir}' for storing meta data."
+      puts "Fetching meta data."
+      update_commanders()
+      update_banned()
+      update_commander_tiers()
     end
 
     unless File.directory?(@@deck_dir)
@@ -53,11 +57,7 @@ module CockatriceFeeder
       end
     end
 
-    puts "Fetching meta data."
-    update_commanders()
-    update_banned()
-    update_commander_tiers()
-    puts "Done! Scraw!"
+    puts "Ready to scraw!"
   end
 
   def self.update_commanders
@@ -189,6 +189,8 @@ module CockatriceFeeder
     File.open(@@deck_dir+"#{subfolder}/#{filename}.cod", "wb") do |file|
       file.write(builder.to_xml)
     end
+
+    puts "created deck at #{@@deck_dir+"#{subfolder}/#{filename}.cod"}"
   end
 
 
@@ -232,8 +234,7 @@ module CockatriceFeeder
 
     commanders = []
     doc2.css(".board-container .board-col").each do |col|
-      i = 0
-      col.css("h3").each do |h|
+      col.css("h3").each_with_index do |h,i|
         if h.content.include?("Commander")
           col.css("ul")[i].css("a.card-hover").each do |a|
             if a.css("img.commander-img").length > 0
@@ -241,7 +242,6 @@ module CockatriceFeeder
             end
           end
         end
-        i += 1
       end
     end
     deck[:commanders] = commanders
@@ -257,25 +257,27 @@ module CockatriceFeeder
     deck[:price] = price
 
     subfolder = "tappedout"
-
     output_cod(deck, subfolder)
   end
 
-  def self.edhrecavg
-    commanders.map{|c| c["link"]}.each do |c|
-      link = "https://edhrec-json.s3.amazonaws.com/en/decks/#{c}.json"
-      deck = {
-        cardlist: JSON.parse(HTTParty.get(link).body)["description"].
-          split("</a>").last.split("\n").select{|s| s != ""},
+  def self.edhrecavg_decklist
+    commanders.map{|c| c["link"]}.map do |c|
+      {
         name: c,
         commanders: [c],
-        link: link,
+        link: "https://edhrec-json.s3.amazonaws.com/en/decks/#{c}.json",
         price: nil,
-        date: nil
+        date: nil,
+        cardlist: []
       }
-
-      output_cod(deck,"edhrecavg")
     end
+  end
+
+  def self.edhrecavg_deck(deck)
+    deck[:cardlist] = JSON.parse(HTTParty.get(deck[:link]).body)["description"].
+      split("</a>").last.split("\n").select{|s| s != ""}
+
+    output_cod(deck,"edhrecavg")
   end
 
   def self.deckstats_decklist
@@ -330,5 +332,38 @@ module CockatriceFeeder
     deck[:commanders] = commanders
 
     output_cod(deck,"mtgdecks")
+  end
+
+  def self.gobble
+    setup()
+
+    total_decks = 0
+
+    # puts "Fetching the most recently updated ranked decks from tappedout"
+    # decks = CockatriceFeeder.tappedout_decklist(1..10)
+    # puts "#{decks.length} decks found."
+    # decks.each {|d|
+    #   CockatriceFeeder.tappedout_deck(d)
+    #   total_decks += 1
+    # }
+    #
+    # puts "Fetching the first 10 pages of decks at https://mtgdecks.net/Commander/decklists/"
+    # decks = CockatriceFeeder.mtgdecks_decklist(1..10)
+    # puts "#{decks.length} decks found."
+    # decks.each {|d|
+    #   CockatriceFeeder.mtgdecks_deck(d)
+    #   total_decks += 1
+    # }
+
+    puts "Fetching the average deck for every commander on EDHREC"
+    decks = CockatriceFeeder.edhrecavg_decklist
+    puts "#{decks.length} decks found."
+    decks.each {|d|
+      CockatriceFeeder.edhrecavg_deck(d)
+      total_decks += 1
+    }
+
+    puts "#{total_decks} decks created."
+    puts "Scraw!"
   end
 end

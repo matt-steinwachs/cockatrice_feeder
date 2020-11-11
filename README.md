@@ -6,7 +6,17 @@ Scraw!
 ## Install
 `gem install cockatrice_feeder`
 
-## Example Setup
+## Simple
+```
+require 'cockatrice_feeder'
+CockatriceFeeder.gobble
+```
+
+This will scrape a whole bunch of decks and put them into a decks folder in the current directory. Wait for it to finish or kill the process once you have enough.
+
+## Detailed
+
+### Setup
 open an irb console anywhere and require the gem
 
 `require 'cockatrice_feeder'`
@@ -23,25 +33,22 @@ The following will set both directories within the same parent folder with defau
 
 `CockatriceFeeder.set_app_dir('/some/path/')`
 
-By default it will use the present working directory and create subfolders there.
+**By default it will use the current directory (pwd) and create subfolders there.**
 
 Run the following to create any missing folders and download the meta information used to fetch decks.
 
 `CockatriceFeeder.setup`
 
-## Fetching Decks
-### Simple
-If you just want to get a whole bunch of decks run:
-
-`CockatriceFeeder.gobble`
-
-### Detailed
-There are currently 3 supported sources for decks:
+### Fetching Decks
 
 #### edhrecavg
 For every commander listed on EDHREC CockatriceFeeder will download the deck created from the average of all decks for that commander. Run the following:
 
-`CockatriceFeeder.edhrecavg`
+```
+decks = CockatriceFeeder.edhrecavg_decklist
+
+decks.each{|d| CockatriceFeeder.edhrecavg_deck(d)}
+```
 
 #### mtgdecks
 A list of recent competitive EDH decks. CockatriceFeeder will go back through the list for as many pages as you specify and will automatically throw out any decks that contain currently banned cards. Run the following to fetch the first 2 pages of decks:
