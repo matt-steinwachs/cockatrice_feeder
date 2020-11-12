@@ -300,7 +300,7 @@ module CockatriceFeeder
 
   #order ["views,desc", "price,desc", "likes,desc", "updated,desc"]
   #commander should be a name attribute from the commanders array of objects
-  def self.deckstats_decklist(commander = "nil", pages = (1..1), order = "likes,desc", price_min = "", price_max = "")
+  def self.deckstats_decklist(commander = "", pages = (1..1), order_by = "likes,desc", price_min = "", price_max = "")
     decklist = []
     pages.each do |page|
       url = [
@@ -317,7 +317,7 @@ module CockatriceFeeder
         "&search_number_cards_sideboard=",
         "&search_cards%5B%5D=",
         "&search_tags=",
-        "&search_order=#{URI.encode_www_form_component(order)}",
+        "&search_order=#{URI.encode_www_form_component(order_by)}",
         "&utf8=%E2%9C%94",
         "&page=#{page}"
       ].join("")

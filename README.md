@@ -1,5 +1,5 @@
 # Cockatrice Feeder
-A tool to scrape MTG decks from the internet along with some meta information and create Cockatrice compatible deck files.
+A tool to scrape MTG EDH decks from the internet along with some meta information and create Cockatrice compatible deck files.
 
 Scraw!
 
@@ -13,6 +13,18 @@ gobble
 ```
 
 This will scrape a whole bunch of decks and put them into a decks folder in the current directory. Wait for it to finish or kill the process once you have enough.
+
+Files will be named with the following convention:
+
+```
+{commmander_name}_{deckname}_{price}_{source}.cod
+```
+
+The deck comments will contain a link to the original deck and other information about it.
+
+Sometimes a little cleanup is required. Dual/flip cards fail to import (working on it). Sometimes the commander is not included in the deck because it was listed in the sideboard. Usually the deck name lets you know what the commander is and it's easy to fix within cockatrice.
+
+Cockatrice Feeder tries to only import currently legal decks, but it's not perfect.
 
 ## Detailed
 
@@ -66,17 +78,13 @@ Using tappedout's deck search CockatriceFeeder can download up to 10 pages of de
 
 Supported search params
 
-pages
-: 1..10 or any subset of that range (i.e. 2..5)
+pages: 1..10 or any subset of that range (i.e. 2..5)
 
-order_by
-: any string in ["-date_updated", "-ranking", "-competitive_score"], default "-date_updated"
+order_by: any string in ["-date_updated", "-ranking", "-competitive_score"], default "-date_updated"
 
-price_min
-: defaults to "" which means no min, otherwise it supports any integer (i.e. 100)
+price_min: defaults to "" which means no min, otherwise it supports any integer (i.e. 100)
 
-price_min
-: defaults to "" which means no max, otherwise it supports any integer (i.e. 1000)
+price_min: defaults to "" which means no max, otherwise it supports any integer (i.e. 1000)
 
 ```
 decks = CockatriceFeeder.tappedout_decklist(
@@ -87,6 +95,36 @@ decks = CockatriceFeeder.tappedout_decklist(
 )
 
 decks.each{|d| CockatriceFeeder.tappedout_deck(d)}
+```
+
+The first line will fetch the basic information about each deck including its link. The second will fill in the rest of the information for each deck and output a deck file for each in the tappedout subfolder.
+
+
+#### deckstats
+Using deckstats's deck search CockatriceFeeder can download any number of pages of decks returned by customizable searches.
+
+Supported search params
+
+commander: defaults to "". Accepts any legal commander name (i.e. "Sram, Senior Edificer"). You can get these from the name attribute of each object in the array returned by `CockatriceFeeder.commanders`
+
+pages: any range of integers. (i.e. 1..25)
+
+order_by: default is "likes,desc". Accepts any string in ["views,desc", "price,desc", "likes,desc", "updated,desc"]
+
+price_min: defaults to "" which means no min, otherwise it supports any integer (i.e. 100)
+
+price_min: defaults to "" which means no max, otherwise it supports any integer (i.e. 1000)
+
+```
+decks = deckstats_decklist(
+  commander = "",
+  pages = (1..1),
+  order_by = "likes,desc",
+  price_min = "",
+  price_max = ""
+)
+
+decks.each{|d| CockatriceFeeder.deckstats_deck(d)}
 ```
 
 The first line will fetch the basic information about each deck including its link. The second will fill in the rest of the information for each deck and output a deck file for each in the tappedout subfolder.
