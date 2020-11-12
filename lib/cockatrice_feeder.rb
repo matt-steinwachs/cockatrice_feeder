@@ -1,7 +1,8 @@
 module CockatriceFeeder
   require 'httparty'
-  require 'awesome_print'
   require 'nokogiri'
+  require 'fileutils'
+  require 'descriptive_statistics'
 
   @@app_dir = Dir.pwd+"/"
   @@deck_dir = @@app_dir+"decks/"
@@ -11,6 +12,9 @@ module CockatriceFeeder
     @@app_dir = (dir + (dir[-1] != "/" ? "/" : ""))
     @@deck_dir = @@app_dir+"decks/"
     @@meta_dir = @@app_dir+"meta/"
+
+    puts "decks will go here: #{@@deck_dir}"
+    puts "meta data will go here: #{@@meta_dir}"
   end
 
   def self.app_dir
@@ -19,6 +23,7 @@ module CockatriceFeeder
 
   def self.set_deck_dir(dir)
     @@deck_dir = (dir + (dir[-1] != "/" ? "/" : ""))
+    puts "decks will go here: #{@@deck_dir}"
   end
 
   def self.deck_dir
@@ -27,20 +32,23 @@ module CockatriceFeeder
 
   def self.set_meta_dir(dir)
     @@meta_dir = (dir + (dir[-1] != "/" ? "/" : ""))
+    puts "meta data will go here: #{@@meta_dir}"
   end
 
   def self.meta_dir
     @@meta_dir
   end
 
-  def self.setup
+  def self.setup(skip_meta = false)
     unless File.directory?(@@meta_dir)
       Dir.mkdir(@@meta_dir)
       puts "Creating a folder at '#{@@meta_dir}' for storing meta data."
-      puts "Fetching meta data."
-      update_commanders()
-      update_banned()
-      update_commander_tiers()
+      unless skip_meta
+        puts "Fetching meta data."
+        update_commanders()
+        update_banned()
+        update_commander_tiers()
+      end
     end
 
     unless File.directory?(@@deck_dir)
@@ -61,7 +69,7 @@ module CockatriceFeeder
   end
 
   def self.update_commanders
-    puts "Downloading a list of all commanderse from EDHREC."
+    puts "Downloading a list of all commanders from EDHREC."
     commander_cids = %w(
       w g r u b
       wu ub br rg gw wb ur bg rw gu
@@ -139,15 +147,24 @@ module CockatriceFeeder
   end
 
   def self.commanders
+    unless File.exist?(@@meta_dir+"commanders.json")
+      update_commanders()
+    end
     JSON.parse(File.read(@@meta_dir+"commanders.json"))
   end
 
   def self.banned
+    unless File.exist?(@@meta_dir+"banned.json")
+      update_banned()
+    end
     JSON.parse(File.read(@@meta_dir+"banned.json"))
   end
   # names = banned.map{|c| c["name"]}.uniq.sort
 
-  def self.tiers
+  def self.commander_tiers
+    unless File.exist?(@@meta_dir+"tiers.json")
+      update_commander_tiers()
+    end
     JSON.parse(File.read(@@meta_dir+"tiers.json"))
   end
 
@@ -165,7 +182,7 @@ module CockatriceFeeder
       deck[:name],
       deck[:price],
       subfolder
-    ].compact.reject(&:empty?).uniq.join('_')
+    ].compact.reject(&:empty?).uniq.join('_').gsub("/","")
 
     builder = Nokogiri::XML::Builder.new do |xml|
       xml.cockatrice_deck(:version => "1"){
@@ -280,12 +297,70 @@ module CockatriceFeeder
     output_cod(deck,"edhrecavg")
   end
 
-  def self.deckstats_decklist
 
+  #order ["views,desc", "price,desc", "likes,desc", "updated,desc"]
+  #commander should be a name attribute from the commanders array of objects
+  def self.deckstats_decklist(commander = "nil", pages = (1..1), order = "likes,desc", price_min = "", price_max = "")
+    decklist = []
+    pages.each do |page|
+      url = [
+        "https://deckstats.net/decks/search/?lng=en",
+        "&search_title=",
+        "&search_format=10",
+        "&search_season=0",
+        "&search_cards_commander%5B%5D=#{URI.encode_www_form_component(commander)}",
+        "&search_cards_commander%5B%5D=",
+        "&search_price_min=#{price_min}",
+        "&search_price_max=#{price_max}",
+        "&search_colors%5B%5D=",
+        "&search_number_cards_main=100",
+        "&search_number_cards_sideboard=",
+        "&search_cards%5B%5D=",
+        "&search_tags=",
+        "&search_order=#{URI.encode_www_form_component(order)}",
+        "&utf8=%E2%9C%94",
+        "&page=#{page}"
+      ].join("")
+
+      doc = Nokogiri::HTML(HTTParty.get(url).body)
+
+      doc.css(".deck_row").each do |dr|
+        link = dr.css("td")[1].css("a").first.attribute("href").value
+        decklist << {
+          link: link,
+          name: link.split("/")[-2],
+          commanders: [commander].reject(&:empty?),
+          price: nil,
+          date: nil,
+          cardlist: []
+        }
+      end
+    end
+
+    decklist
   end
 
-  def self.deckstats_deck
+  def self.deckstats_deck(deck)
+    docstring = HTTParty.get(deck[:link]).body
 
+    doc = Nokogiri::HTML(docstring)
+
+    legal = (doc.css(".fa-exclamation-triangle").count == 0)
+
+    if legal
+      deck_data = JSON.parse(docstring.split("init_deck_data(").last.split(");deck_display();").first)
+      deck[:date] = DateTime.strptime(deck_data["updated"].to_s,'%s')
+      unless deck_data["highlight_cards"].nil?
+        deck[:commanders] = deck_data["highlight_cards"]
+      end
+      deck[:cardlist] = deck_data["sections"].map do |sec|
+        sec["cards"].map{|c| "#{c["amount"]} #{c["name"]}"}
+      end.flatten
+
+      deck[:price] = doc.css(".deck_overview_price").first.content.gsub("$","").strip.split(".").first
+
+      output_cod(deck,'deckstats')
+    end
   end
 
   def self.mtgdecks_decklist(pages = (1..1))
@@ -313,7 +388,6 @@ module CockatriceFeeder
   end
 
   def self.mtgdecks_deck(deck)
-    puts deck[:link]
     doc = Nokogiri::HTML(HTTParty.get(deck[:link]).body)
 
     cardlist = []
@@ -335,7 +409,8 @@ module CockatriceFeeder
   end
 
   def self.gobble
-    setup()
+    setup(skip_meta = true)
+    update_commanders()
 
     total_decks = 0
 
@@ -360,10 +435,25 @@ module CockatriceFeeder
     puts "#{decks.length} decks found."
     decks.each {|d|
       CockatriceFeeder.mtgdecks_deck(d)
-      total_decks += 1
+      if d[:cardlist].length < 0
+        total_decks += 1
+      end
     }
 
-    puts "#{total_decks} decks created."
+    puts "Fetching the first 5 pages of edh decks from deckstats ordered by likes"
+    decks = CockatriceFeeder.deckstats_decklist("", (1..5))
+    puts "#{decks.length} decks found."
+    decks.each {|d|
+      CockatriceFeeder.deckstats_deck(d)
+      if d[:cardlist].length < 0
+        total_decks += 1
+      end
+    }
+
+    puts "#{total_decks} decks created at #{@@deck_dir}."
+
+    puts "cleaning up"
+    FileUtils.remove_dir(@@meta_dir)
     puts "Scraw!"
   end
 end

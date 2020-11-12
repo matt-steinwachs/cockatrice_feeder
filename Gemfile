@@ -4,3 +4,4 @@ gemspec
 
 gem 'httparty'
 gem 'nokogiri'
+gem 'descriptive_statistics'
