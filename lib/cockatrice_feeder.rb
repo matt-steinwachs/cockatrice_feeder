@@ -2,7 +2,6 @@ module CockatriceFeeder
   require 'httparty'
   require 'nokogiri'
   require 'fileutils'
-  require 'descriptive_statistics'
 
   @@app_dir = Dir.pwd+"/"
   @@deck_dir = @@app_dir+"decks/"
@@ -55,7 +54,7 @@ module CockatriceFeeder
       Dir.mkdir(@@deck_dir)
       puts "Creating a folder at '#{@@deck_dir}' for generated decks."
 
-      folders = %w(edhrecavg mtgdecks tappedout deckstats)
+      folders = %w(edhrecavg mtgdecks tappedout deckstats archidekt)
 
       folders.each do |folder|
         unless File.directory?(@@deck_dir+folder)
@@ -168,6 +167,17 @@ module CockatriceFeeder
     JSON.parse(File.read(@@meta_dir+"tiers.json"))
   end
 
+  def self.deck_obj(link = "", name = "", commanders = [], date = nil, price = nil)
+    {
+      link: link,
+      name: name,
+      commanders: commanders,
+      date: nil,
+      price: nil,
+      cardlist: []
+    }
+  end
+
   def self.output_cod(deck, subfolder)
     comments = [
       deck[:name],
@@ -227,14 +237,7 @@ module CockatriceFeeder
       doc.css(".deck-wide-header a").each do |a|
         link = a.attribute("href").value
         if link.include?("/mtg-decks/")
-          decks << {
-            name: link.split("/").last,
-            commanders: [],
-            link: "https://tappedout.net"+link,
-            date: nil,
-            price: nil,
-            cardlist: []
-          }
+          decks << deck_obj("https://tappedout.net"+link, link.split("/").last)
         end
       end
     end
@@ -279,14 +282,7 @@ module CockatriceFeeder
 
   def self.edhrecavg_decklist
     commanders.map{|c| c["link"]}.map do |c|
-      {
-        name: c,
-        commanders: [c],
-        link: "https://edhrec-json.s3.amazonaws.com/en/decks/#{c}.json",
-        price: nil,
-        date: nil,
-        cardlist: []
-      }
+      deck_obj("https://edhrec-json.s3.amazonaws.com/en/decks/#{c}.json", c, [c])
     end
   end
 
@@ -326,14 +322,7 @@ module CockatriceFeeder
 
       doc.css(".deck_row").each do |dr|
         link = dr.css("td")[1].css("a").first.attribute("href").value
-        decklist << {
-          link: link,
-          name: link.split("/")[-2],
-          commanders: [commander].reject(&:empty?),
-          price: nil,
-          date: nil,
-          cardlist: []
-        }
+        decklist << deck_obj(link,link.split("/")[-2],[commander].reject(&:empty?))
       end
     end
 
@@ -357,10 +346,55 @@ module CockatriceFeeder
         sec["cards"].map{|c| "#{c["amount"]} #{c["name"]}"}
       end.flatten
 
-      deck[:price] = doc.css(".deck_overview_price").first.content.gsub("$","").strip.split(".").first
+      deck[:price] = (
+        !doc.css(".deck_overview_price").first.nil? ?
+          doc.css(".deck_overview_price").first.content.gsub("$","").strip.split(".").first
+          : nil
+      )
 
       output_cod(deck,'deckstats')
     end
+  end
+
+  def self.archidekt_decklist()
+  end
+
+  # deck = CockatriceFeeder.deck_obj("https://www.archidekt.com/decks/992684#Rocking_that_equipment_Bro")
+  # CockatriceFeeder.archidekt_deck(deck)
+  def self.archidekt_deck(deck)
+    deck_id = deck[:link].split("/").last.split("#").first
+
+    api_url = "https://www.archidekt.com/api/decks/#{deck_id}/"
+
+    deck_data = JSON.parse(HTTParty.get(api_url).body)
+
+    included_categories = deck_data["categories"].select{|c| c["includedInDeck"]}.map{|c| c["name"] }
+    commander_categories = deck_data["categories"].select{|c| c["isPremier"]}.map{|c| c["name"] }
+    cardlist = []
+    deck_data["cards"].each do |card|
+      cname = card["card"]["oracleCard"]["name"]
+
+      if card["card"]["oracleCard"]["layout"] != "split"
+        cname = cname.split(" // ").first
+      end
+      
+      if (included_categories & card["categories"]).length > 0
+        cardlist << "#{card["quantity"]} #{cname}"
+      end
+
+      if (commander_categories & card["categories"]).length > 0
+        deck[:commanders] << cname
+      end
+    end
+    deck[:cardlist] = cardlist
+
+    deck[:name] = deck_data["name"]
+
+    deck[:date] = deck_data["updatedAt"]
+
+    mtggoldfish_pricer(deck)
+
+    output_cod(deck,"archidekt")
   end
 
   def self.mtgdecks_decklist(pages = (1..1))
@@ -370,16 +404,16 @@ module CockatriceFeeder
       doc = Nokogiri::HTML(HTTParty.get("https://mtgdecks.net/Commander/decklists/page:#{page}").body)
       doc.css(".decks tr.previewable").each do |r|
         if r.css("td")[0].css(".label-danger").length == 0
-          decks << {
-            name: "", # r.css("td")[1].css("a")[0].content,
+          date = r.css("td")[6].css("strong")[0].content.
+            gsub("<span class=\"hidden-xs\">","").
+            gsub("</span>","").gsub(/\s+/, "")
+          price = r.css("td")[7].css("span.paper")[0].content.gsub("$","").gsub(/\s+/, "")
+
+          decks << deck_obj(
             link: "https://mtgdecks.net"+r.css("td")[1].css("a")[0].attribute("href").value,
-            date: r.css("td")[6].css("strong")[0].content.
-              gsub("<span class=\"hidden-xs\">","").
-              gsub("</span>","").gsub(/\s+/, ""),
-            price: r.css("td")[7].css("span.paper")[0].content.gsub("$","").gsub(/\s+/, ""),
-            commanders: [],
-            cardlist: []
-          }
+            date: date,
+            price: price
+          )
         end
       end
     end
@@ -406,6 +440,25 @@ module CockatriceFeeder
     deck[:commanders] = commanders
 
     output_cod(deck,"mtgdecks")
+  end
+
+  def self.mtggoldfish_pricer(deck)
+    doc = Nokogiri::HTML(HTTParty.get("https://www.mtggoldfish.com/tools/deck_pricer#paper"))
+    csrf_token = nil
+    doc.css("meta").each do |m|
+      if !m.attribute("name").nil? && m.attribute("name").value == "csrf-token"
+        csrf_token = m.attribute("content").value
+      end
+    end
+    doc2 = Nokogiri::HTML(HTTParty.post("https://www.mtggoldfish.com/tools/deck_pricer#paper", {
+      body: {
+        utf8: "✓",
+        authenticity_token: csrf_token,
+        deck: deck[:cardlist].join("\n")
+      }
+    }))
+
+    deck[:price] = doc2.css(".deck-price-v2.paper").first.content.strip.split(" ").last.split(".").first
   end
 
   def self.gobble
@@ -435,7 +488,7 @@ module CockatriceFeeder
     puts "#{decks.length} decks found."
     decks.each {|d|
       CockatriceFeeder.mtgdecks_deck(d)
-      if d[:cardlist].length < 0
+      if d[:cardlist].length > 0
         total_decks += 1
       end
     }
@@ -445,7 +498,7 @@ module CockatriceFeeder
     puts "#{decks.length} decks found."
     decks.each {|d|
       CockatriceFeeder.deckstats_deck(d)
-      if d[:cardlist].length < 0
+      if d[:cardlist].length > 0
         total_decks += 1
       end
     }

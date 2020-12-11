@@ -1,4 +1,8 @@
 ✔ Write a scraper for deckstats @done(2020-11-11 19:19)
 ☐ Add more params to the tappedout scraper
 ☐ Random deck picker with power level
-☐ 
+☐ Add a scraper for moxfield
+✔ Add a deck scraper for the Archidekt API @done(2020-12-11 14:36)
+☐ Add a deck search for archidekt
+☐ Add archidekt to gobble
+✔ Add mtggoldfish deck pricer @done(2020-12-11 14:37)
