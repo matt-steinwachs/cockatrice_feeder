@@ -356,7 +356,32 @@ module CockatriceFeeder
     end
   end
 
-  def self.archidekt_decklist()
+  def self.archidekt_decklist(
+    colors = nil, commander = nil, formats = 3, orderBy = "-createdAt", size: 100, pageSize: 50
+  )
+
+    url = [
+      "https://www.archidekt.com/api/decks/cards/?",
+      [
+        (colors.nil? ? nil : "colors=#{URI.encode_www_form_component(colors)}"),
+        (commander.nil? ? nil : "commanders=#{URI.encode_www_form_component(commander)}"),
+        "formats=#{formats}",
+        "orderBy=#{orderBy}",
+        "size=#{size}",
+        "pageSize=#{pageSize}"
+      ].compact.join("&")
+    ].join("")
+
+    puts url
+
+    decklist = []
+    data = JSON.parse(HTTParty.get(url).body)
+
+    data["results"].each do |r|
+      decklist << deck_obj("https://www.archidekt.com/decks/#{r["id"]}", r["name"])
+    end
+
+    decklist
   end
 
   # deck = CockatriceFeeder.deck_obj("https://www.archidekt.com/decks/992684#Rocking_that_equipment_Bro")
@@ -371,28 +396,33 @@ module CockatriceFeeder
     included_categories = deck_data["categories"].select{|c| c["includedInDeck"]}.map{|c| c["name"] }
     commander_categories = deck_data["categories"].select{|c| c["isPremier"]}.map{|c| c["name"] }
     cardlist = []
+    tcg_price = 0.0
+    ck_price = 0.0
     deck_data["cards"].each do |card|
       cname = card["card"]["oracleCard"]["name"]
 
       if card["card"]["oracleCard"]["layout"] != "split"
         cname = cname.split(" // ").first
       end
-      
+
       if (included_categories & card["categories"]).length > 0
         cardlist << "#{card["quantity"]} #{cname}"
+
+        tcg_price += (card["card"]["prices"]["tcg"] * card["quantity"].to_f)
+        ck_price += (card["card"]["prices"]["ck"] * card["quantity"].to_f)
       end
 
       if (commander_categories & card["categories"]).length > 0
         deck[:commanders] << cname
       end
     end
+
     deck[:cardlist] = cardlist
+    deck[:price] = tcg_price.to_i.to_s
 
     deck[:name] = deck_data["name"]
 
     deck[:date] = deck_data["updatedAt"]
-
-    mtggoldfish_pricer(deck)
 
     output_cod(deck,"archidekt")
   end
@@ -450,6 +480,7 @@ module CockatriceFeeder
         csrf_token = m.attribute("content").value
       end
     end
+
     doc2 = Nokogiri::HTML(HTTParty.post("https://www.mtggoldfish.com/tools/deck_pricer#paper", {
       body: {
         utf8: "✓",
@@ -458,7 +489,8 @@ module CockatriceFeeder
       }
     }))
 
-    deck[:price] = doc2.css(".deck-price-v2.paper").first.content.strip.split(" ").last.split(".").first
+    deck[:price] = doc2.css(".deck-price-v2.paper").first.
+      content.strip.split(" ").last.split(".").first.gsub(",","")
   end
 
   def self.gobble
