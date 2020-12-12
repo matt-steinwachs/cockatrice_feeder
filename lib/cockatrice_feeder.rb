@@ -356,13 +356,16 @@ module CockatriceFeeder
     end
   end
 
+  #colors = "White,Blue,Black,Red,Green,Colorless"
+  #orderBy = "-updatedAt", "-createdAt", "-points", 
   def self.archidekt_decklist(
-    colors = nil, commander = nil, formats = 3, orderBy = "-createdAt", size: 100, pageSize: 50
+    andcolors = nil, colors = nil, commander = nil, formats = 3, orderBy = "-createdAt", size: 100, pageSize: 50
   )
 
     url = [
       "https://www.archidekt.com/api/decks/cards/?",
       [
+        (andcolors.nil? ? nil : "true")
         (colors.nil? ? nil : "colors=#{URI.encode_www_form_component(colors)}"),
         (commander.nil? ? nil : "commanders=#{URI.encode_www_form_component(commander)}"),
         "formats=#{formats}",
