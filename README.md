@@ -57,17 +57,17 @@ Run the following to create any missing folders and download the meta informatio
 For every commander listed on EDHREC CockatriceFeeder will download the deck created from the average of all decks for that commander. Run the following:
 
 ```
+require 'cockatrice_feeder'
 decks = CockatriceFeeder.edhrecavg_decklist
-
 decks.each{|d| CockatriceFeeder.edhrecavg_deck(d)}
 ```
 
 #### mtgdecks
-A list of recent competitive EDH decks. CockatriceFeeder will go back through the list for as many pages as you specify and will automatically throw out any decks that contain currently banned cards. Run the following to fetch the first 2 pages of decks:
+A list of recent competitive EDH decks. CockatriceFeeder will go back through the list for as many pages as you specify and will automatically throw out any decks that contain currently banned cards. Run the following to fetch the first page of decks:
 
 ```
-decks = CockatriceFeeder.mtgdecks_decklist(pages = 1..2)
-
+require 'cockatrice_feeder'
+decks = CockatriceFeeder.mtgdecks_decklist(pages = 1..1)
 decks.each{|d| CockatriceFeeder.mtgdecks_deck(d)}
 ```
 
@@ -87,8 +87,9 @@ price_min: defaults to "" which means no min, otherwise it supports any integer 
 price_min: defaults to "" which means no max, otherwise it supports any integer (i.e. 1000)
 
 ```
+require 'cockatrice_feeder'
 decks = CockatriceFeeder.tappedout_decklist(
-  pages = 1..10,
+  pages = 1..2,
   order_by = "-date_updated",
   price_min = "",
   price_max = ""
@@ -97,7 +98,7 @@ decks = CockatriceFeeder.tappedout_decklist(
 decks.each{|d| CockatriceFeeder.tappedout_deck(d)}
 ```
 
-The first line will fetch the basic information about each deck including its link. The second will fill in the rest of the information for each deck and output a deck file for each in the tappedout subfolder.
+The first commander will fetch the basic information about each deck including its link. The second will fill in the rest of the information for each deck and output a deck file for each in the tappedout subfolder.
 
 
 #### deckstats
@@ -116,7 +117,8 @@ price_min: defaults to "" which means no min, otherwise it supports any integer 
 price_min: defaults to "" which means no max, otherwise it supports any integer (i.e. 1000)
 
 ```
-decks = deckstats_decklist(
+require 'cockatrice_feeder'
+decks = CockatriceFeeder.deckstats_decklist(
   commander = "",
   pages = (1..1),
   order_by = "likes,desc",
@@ -127,4 +129,24 @@ decks = deckstats_decklist(
 decks.each{|d| CockatriceFeeder.deckstats_deck(d)}
 ```
 
-The first line will fetch the basic information about each deck including its link. The second will fill in the rest of the information for each deck and output a deck file for each in the tappedout subfolder.
+The first line will fetch the basic information about each deck including its link. The second will fill in the rest of the information for each deck and output a deck file for each in the deckstats subfolder.
+
+#### archidekt
+Using archidekt's super cool deck search API CockatriceFeeder can download any number of pages of decks returned by customizable searches.
+
+```
+decks = CockatriceFeeder.archidekt_decklist(
+  andcolors = nil, # deck must include all colors if true
+  colors = nil, # a string like "White,Blue,Black,Red,Green,Colorless" including the colors you want
+  commander = nil, #any commander name i.e. "Akuta, Born of Ash"
+  owner = nil, # any archidekt user name
+  formats = 3, # EDH
+  orderBy = "-createdAt", #any of "-updatedAt", "-createdAt", "-points", "-viewCount" and more
+  size: 100, # deck size exact (to help weed out illegal EDH decks)
+  pageSize: 50
+)
+
+decks.each{|d| CockatriceFeeder.archidekt_deck(d)}
+```
+
+The first line will fetch the basic information about each deck including its link and name. The second will fill in the rest of the information for each deck and output a deck file for each in the archideckt subfolder.

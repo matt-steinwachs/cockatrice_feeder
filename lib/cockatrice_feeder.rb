@@ -172,8 +172,8 @@ module CockatriceFeeder
       link: link,
       name: name,
       commanders: commanders,
-      date: nil,
-      price: nil,
+      date: date,
+      price: price,
       cardlist: []
     }
   end
@@ -357,17 +357,18 @@ module CockatriceFeeder
   end
 
   #colors = "White,Blue,Black,Red,Green,Colorless"
-  #orderBy = "-updatedAt", "-createdAt", "-points", 
+  #orderBy = "-updatedAt", "-createdAt", "-points", "-viewCount"
   def self.archidekt_decklist(
-    andcolors = nil, colors = nil, commander = nil, formats = 3, orderBy = "-createdAt", size: 100, pageSize: 50
+    andcolors = nil, colors = nil, commander = nil, owner = nil, formats = 3, orderBy = "-createdAt", size: 100, pageSize: 50
   )
 
     url = [
       "https://www.archidekt.com/api/decks/cards/?",
       [
-        (andcolors.nil? ? nil : "true")
+        (andcolors.nil? ? nil : "true"),
         (colors.nil? ? nil : "colors=#{URI.encode_www_form_component(colors)}"),
         (commander.nil? ? nil : "commanders=#{URI.encode_www_form_component(commander)}"),
+        (owner.nil? ? nil : "owner=#{URI.encode_www_form_component(owner)}"),
         "formats=#{formats}",
         "orderBy=#{orderBy}",
         "size=#{size}",
@@ -437,16 +438,14 @@ module CockatriceFeeder
       doc = Nokogiri::HTML(HTTParty.get("https://mtgdecks.net/Commander/decklists/page:#{page}").body)
       doc.css(".decks tr.previewable").each do |r|
         if r.css("td")[0].css(".label-danger").length == 0
+          link = "https://mtgdecks.net"+r.css("td")[1].css("a")[0].attribute("href").value
+          name = link.split("/").last
           date = r.css("td")[6].css("strong")[0].content.
             gsub("<span class=\"hidden-xs\">","").
             gsub("</span>","").gsub(/\s+/, "")
           price = r.css("td")[7].css("span.paper")[0].content.gsub("$","").gsub(/\s+/, "")
 
-          decks << deck_obj(
-            link: "https://mtgdecks.net"+r.css("td")[1].css("a")[0].attribute("href").value,
-            date: date,
-            price: price
-          )
+          decks << deck_obj(link,name,nil,date,price)
         end
       end
     end
