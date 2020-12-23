@@ -145,6 +145,15 @@ module CockatriceFeeder
     tiers
   end
 
+  def self.update_full_data
+    File.open(@@meta_dir+"AllPrintings.json", "w") do |file|
+      file.binmode
+      HTTParty.get("https://mtgjson.com/api/v5/AllPrintings.json", stream_body: true) do |fragment|
+        file.write(fragment)
+      end
+    end
+  end
+
   def self.commanders
     unless File.exist?(@@meta_dir+"commanders.json")
       update_commanders()
@@ -165,6 +174,13 @@ module CockatriceFeeder
       update_commander_tiers()
     end
     JSON.parse(File.read(@@meta_dir+"tiers.json"))
+  end
+
+  def self.full_data
+    unless File.exist?(@@meta_dir+"AllPrintings.json")
+      update_full_data()
+    end
+    JSON.parse(File.read(@@meta_dir+"AllPrintings.json"))
   end
 
   def self.deck_obj(link = "", name = "", commanders = [], date = nil, price = nil)
@@ -367,7 +383,7 @@ module CockatriceFeeder
       [
         (andcolors.nil? ? nil : "true"),
         (colors.nil? ? nil : "colors=#{URI.encode_www_form_component(colors)}"),
-        (commander.nil? ? nil : "commanders=#{URI.encode_www_form_component(commander)}"),
+        (commander.nil? ? nil : "commanders=\"#{URI.encode_www_form_component(commander)}\""),
         (owner.nil? ? nil : "owner=#{URI.encode_www_form_component(owner)}"),
         "formats=#{formats}",
         "orderBy=#{orderBy}",
@@ -493,6 +509,118 @@ module CockatriceFeeder
 
     deck[:price] = doc2.css(".deck-price-v2.paper").first.
       content.strip.split(" ").last.split(".").first.gsub(",","")
+  end
+
+  def self.mtgapi_card(params = {multiverse_id: nil, name: nil, set:nil})
+    defaults = {multiverse_id: nil, name: nil}
+    params = defaults.merge(params)
+
+    puts "looking up #{params}"
+
+    card = nil
+    if params[:multiverse_id] != nil
+      card = JSON.parse(
+        HTTParty.get("https://api.magicthegathering.io/v1/cards/#{params[:multiverse_id]}").body
+      )["card"]
+    elsif params[:name] != nil
+      query = [
+        "name=#{URI.encode_www_form_component(params[:name])}",
+        (params[:set] != nil ? "set=#{params[:set]}" : nil)
+      ].compact.join("&")
+
+      card = JSON.parse(
+        HTTParty.get("https://api.magicthegathering.io/v1/cards?#{query}").body
+      )["cards"].first
+    end
+    return card
+  end
+
+  # CockatriceFeeder.build_deck_from_sets("Lazav, Dimir Mastermind", ["RAV", "GPT", "DIS", "RTR", "GTC", "DGM", "GRN", "RNA", "WAR"])
+  def self.build_deck_from_sets(commander, sets)
+    #lookup edhrecavg deck for commander
+    c = commanders.select{|c| c["name"] == commander}.first
+    d = deck_obj("https://edhrec-json.s3.amazonaws.com/en/decks/#{c["link"]}.json", c["name"]+" SCRAW", [c["name"]])
+    edhrecavg_deck(d)
+
+    #remember cards to avoid repeat lookups to mtgapi
+    mem = {}
+
+    #throw out any cards not in sets
+    d[:cardlist] = d[:cardlist].select do |cl|
+      name = cl.split(' ')[1..-1].join(" ")
+      unless mem.has_key?(name)
+        mem[name] = mtgapi_card(name: cl.split(' ')[1..-1].join(" "))
+      end
+      card = mem[name]
+
+      (card["printings"] & sets).length > 0
+    end
+
+    #lookup archidekt decks for the commander to find other cards from the set
+    arch_decks = archidekt_decklist(nil, nil, c["name"])
+    arch_decks.each do |ad| archidekt_deck(ad) end
+    arch_decks.each do |ad|
+      in_set = ad[:cardlist].select do |cl|
+        name = cl.split(' ')[1..-1].join(" ")
+        unless mem.has_key?(name)
+          mem[name] = mtgapi_card(name: cl.split(' ')[1..-1].join(" "))
+        end
+        card = mem[name]
+
+        #flip/dual cards don't always work
+        if card != nil
+          (card["printings"] & sets).length > 0
+        end
+      end
+
+      in_set.each do |cl|
+        name = cl.split(' ')[1..-1].join(" ")
+        cur = d[:cardlist].map{|x| x.split(' ')[1..-1].join(" ")}
+        curlen = d[:cardlist].map{|x| x.split(' ').first.to_i}.inject(0){|sum,x| sum + x }
+        unless cur.include?(name) || curlen >= 100
+          d[:cardlist] << cl
+        end
+      end
+
+      curlen = d[:cardlist].map{|x| x.split(' ').first.to_i}.inject(0){|sum,x| sum + x }
+      if curlen >= 100
+        break
+      end
+    end
+
+    #lookup deckstats decks for the commander
+    curlen = d[:cardlist].map{|x| x.split(' ').first.to_i}.inject(0){|sum,x| sum + x }
+    if curlen < 100
+      dstat_decks = deckstats_decklist(c["name"],1..5)
+      dstat_decks.each do |ds| deckstats_deck(ds) end
+      dstat_decks.each do |ds|
+        in_set = ds[:cardlist].select do |cl|
+          name = cl.split(' ')[1..-1].join(" ")
+          unless mem.has_key?(name)
+            mem[name] = mtgapi_card(name: cl.split(' ')[1..-1].join(" "))
+          end
+          card = mem[name]
+
+          (card["printings"] & sets).length > 0
+        end
+
+        in_set.each do |cl|
+          name = cl.split(' ')[1..-1].join(" ")
+          cur = d[:cardlist].map{|x| x.split(' ')[1..-1].join(" ")}
+          curlen = d[:cardlist].map{|x| x.split(' ').first.to_i}.inject(0){|sum,x| sum + x }
+          unless cur.include?(name) || curlen >= 100
+            d[:cardlist] << cl
+          end
+        end
+
+        curlen = d[:cardlist].map{|x| x.split(' ').first.to_i}.inject(0){|sum,x| sum + x }
+        if curlen >= 100
+          break
+        end
+      end
+    end
+
+    d
   end
 
   def self.gobble
