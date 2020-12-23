@@ -665,6 +665,16 @@ module CockatriceFeeder
       end
     }
 
+    puts "Fetching the first page of edh decks from archidekt ordered by createdAt"
+    decks = CockatriceFeeder.archidekt_decklist()
+    puts "#{decks.length} decks found."
+    decks.each {|d|
+      CockatriceFeeder.archidekt_deck(d)
+      if d[:cardlist].length > 0
+        total_decks += 1
+      end
+    }
+
     puts "#{total_decks} decks created at #{@@deck_dir}."
 
     puts "cleaning up"

@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'cockatrice_feeder'
-  s.version     = '0.0.7'
-  s.date        = '2020-12-13'
+  s.version     = '0.0.9'
+  s.date        = '2020-12-23'
   s.summary     = "Scrape and generate MTG EDH decks for cockatrice"
   s.description = "A tool to scrape MTG EDH decks from the internet along with some meta information and create Cockatrice compatible deck files."
   s.authors     = ["Matthew Steinwachs"]
